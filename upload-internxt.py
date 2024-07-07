@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# by Diego Ercolani 2024
+# A simple approach to upload recursive directories to internxt
+# using internxt cli (https://github.com/internxt/cli)
+# you have only to
+# 0. install internxt cli (npm i -g @internxt/cli)
+# 1. login: internxt login
+# 2. select the remote dir to upload to: internxt list --id=.....
+# 3. launch the script:
+#    upload-internxt.py <local-directory|local file> <remote directory id>
+#  wait.....
+
+
+
 import os
 import pty
 import select
