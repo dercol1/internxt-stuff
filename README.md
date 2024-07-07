@@ -1,4 +1,4 @@
-# uploadtointernxt
+# upload-internxt.py
 A script to recursive upload to internxt
 
 1. The script begins with a shebang (#\!/usr/bin/env python3) to indicate that it should be executed using Python 3.
