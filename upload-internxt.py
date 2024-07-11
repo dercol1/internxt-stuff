@@ -18,7 +18,6 @@ import select
 import subprocess
 import sys
 
-
 failed_commands = {}
 
 def run_command(command):
@@ -61,9 +60,6 @@ def run_command(command):
     # Attendi che il processo termini e restituisci il codice di uscita
     return process.wait()
 
-
-
-
 def list_files_and_folders(folder_id):
     command = f'internxt list --id={folder_id}'
     print(command)
@@ -75,6 +71,7 @@ def list_files_and_folders(folder_id):
 
     files = {}
     folders = {}
+    folder_names = {}
     for line in stdout.splitlines():
         parts = line.split()
         if len(parts) == 3:
@@ -82,15 +79,18 @@ def list_files_and_folders(folder_id):
                 files[parts[1]] = parts[2]  # Nome file -> ID file
             elif parts[0] == "folder":
                 folders[parts[1]] = parts[2]  # Nome cartella -> ID cartella
-                print(files)
-                print(folders)
-    return files, folders
+                folder_names[parts[2]] = parts[1]  # ID cartella -> Nome cartella
 
-def upload_file(file_path, folder_id, existing_files):
+    return files, folders, folder_names
+
+def upload_file(file_path, folder_id, existing_files, folder_names):
     file_name = os.path.basename(file_path)
     if file_name in existing_files:
         print(f"File {file_name} già presente. Skip upload.")
         return
+
+    remote_folder_name = folder_names.get(folder_id, 'sconosciuta')
+    print(f"Copia oggetto {file_path} in {folder_id} ({remote_folder_name})")
 
     command = f'internxt upload --id={folder_id} --file="{file_path}"'
     return_code = run_command(command)
@@ -98,7 +98,7 @@ def upload_file(file_path, folder_id, existing_files):
         print(f'File "{file_path}" caricato con successo.')
     else:
         print(f"Errore nel caricamento del file {file_path}.")
-        failed_commands[command]="da ritornare errore upload"
+        failed_commands[command] = "da ritornare errore upload"
 
 def create_folder(folder_name, parent_id, existing_folders):
     if folder_name in existing_folders:
@@ -114,11 +114,11 @@ def create_folder(folder_name, parent_id, existing_folders):
         return new_folder_id
     else:
         print(f'Errore nella creazione della cartella "{folder_name}": {stderr}', file=sys.stderr)
-        failed_commands[command]=stderr
+        failed_commands[command] = stderr
         return None
 
 def process_folder(folder_path, parent_id):
-    existing_files, existing_folders = list_files_and_folders(parent_id)
+    existing_files, existing_folders, folder_names = list_files_and_folders(parent_id)
     if existing_files is None or existing_folders is None:
         print(f"Errore nel listare i file o le cartelle nella cartella con ID {parent_id}.")
         return
@@ -127,7 +127,7 @@ def process_folder(folder_path, parent_id):
         # Carica tutti i file nella cartella corrente
         for file in files:
             file_path = os.path.join(root, file)
-            upload_file(file_path, parent_id, existing_files)
+            upload_file(file_path, parent_id, existing_files, folder_names)
 
         # Crea tutte le sottocartelle e processale ricorsivamente
         for dir in dirs:
@@ -153,10 +153,9 @@ def main():
     else:
         print(f"{path} non è una cartella valida.")
 
-    print ('Elenco domandi falliti')
+    print('Elenco comandi falliti')
     for key in failed_commands:
-        print (key)
-
+        print(key)
 
 if __name__ == "__main__":
     main()
