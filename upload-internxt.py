@@ -11,14 +11,16 @@
 #  wait.....
 
 
-
+#!/usr/bin/env python3
 import os
 import pty
 import select
 import subprocess
 import sys
+import pprint
 
 failed_commands = {}
+folder_names = {}
 
 def run_command(command):
     print(f'Running: {command}')
@@ -71,26 +73,31 @@ def list_files_and_folders(folder_id):
 
     files = {}
     folders = {}
-    folder_names = {}
+
     for line in stdout.splitlines():
         parts = line.split()
-        if len(parts) == 3:
-            if parts[0] == "file":
-                files[parts[1]] = parts[2]  # Nome file -> ID file
-            elif parts[0] == "folder":
-                folders[parts[1]] = parts[2]  # Nome cartella -> ID cartella
-                folder_names[parts[2]] = parts[1]  # ID cartella -> Nome cartella
-
+        if len(parts) >= 3:
+            obj_type = parts[0]
+            obj_id = parts[-1]
+            obj_name = ' '.join(parts[1:-1])
+            if obj_type == "file":
+                files[obj_name] = obj_id  # Nome file -> ID file
+            elif obj_type == "folder":
+                folders[obj_name] = obj_id  # Nome cartella -> ID cartella
+                print(f'folder_names[{obj_id}]={obj_name}')
+                folder_names[obj_id] = obj_name  # ID cartella -> Nome cartella
+    #pprint.pprint(folder_names)
     return files, folders, folder_names
 
-def upload_file(file_path, folder_id, existing_files, folder_names):
+
+def upload_file(file_path, folder_path, folder_id, existing_files, folder_names):
     file_name = os.path.basename(file_path)
     if file_name in existing_files:
         print(f"File {file_name} già presente. Skip upload.")
         return
 
     remote_folder_name = folder_names.get(folder_id, 'sconosciuta')
-    print(f"Copia oggetto {file_path} in {folder_id} ({remote_folder_name})")
+    print(f"Copia oggetto {file_path} in {folder_id} ({folder_path})")
 
     command = f'internxt upload --id={folder_id} --file="{file_path}"'
     return_code = run_command(command)
@@ -109,8 +116,9 @@ def create_folder(folder_name, parent_id, existing_folders):
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     stdout, stderr = process.communicate()
     if process.returncode == 0 and "Folder" in stdout:
-        print(stdout.strip())
         new_folder_id = stdout.split("folder/")[1].strip()
+        folder_names[new_folder_id] = folder_name  # Aggiorna qui il folder_names
+        print(stdout.strip())
         return new_folder_id
     else:
         print(f'Errore nella creazione della cartella "{folder_name}": {stderr}', file=sys.stderr)
@@ -127,7 +135,7 @@ def process_folder(folder_path, parent_id):
         # Carica tutti i file nella cartella corrente
         for file in files:
             file_path = os.path.join(root, file)
-            upload_file(file_path, parent_id, existing_files, folder_names)
+            upload_file(file_path, folder_path, parent_id, existing_files, folder_names)
 
         # Crea tutte le sottocartelle e processale ricorsivamente
         for dir in dirs:
@@ -153,7 +161,7 @@ def main():
     else:
         print(f"{path} non è una cartella valida.")
 
-    print('Elenco comandi falliti')
+    print('Elenco domandi falliti')
     for key in failed_commands:
         print(key)
 
